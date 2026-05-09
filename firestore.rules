@@ -11,6 +11,11 @@ service cloud.firestore {
     // Common Helpers
     function isSignedIn() { return request.auth != null; }
     function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isAdmin() { 
+      return isSignedIn() 
+        && request.auth.token.email == 'Flust786@gmail.com' 
+        && request.auth.token.email_verified == true; 
+    }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
@@ -25,9 +30,9 @@ service cloud.firestore {
           && data.level is number;
       }
 
-      allow get: if isOwner(userId);
+      allow get: if isOwner(userId) || isAdmin();
       allow create: if isOwner(userId) && isValidUser(incoming()) && isValidId(userId);
-      allow update: if isOwner(userId) && isValidUser(incoming()) && (
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(incoming()) && (
         incoming().diff(existing()).affectedKeys().hasOnly(['xp', 'level', 'streak', 'totalStudyHours', 'photoURL', 'displayName', 'updatedAt'])
       );
     }
@@ -36,12 +41,16 @@ service cloud.firestore {
     match /questions/{questionId} {
       allow list: if isSignedIn();
       allow get: if isSignedIn() && isValidId(questionId);
+      allow create: if isAdmin() && isValidId(questionId);
+      allow update, delete: if isAdmin() && isValidId(questionId);
     }
 
     // Mock Tests configurations
     match /mockTests/{testId} {
       allow list: if isSignedIn();
       allow get: if isSignedIn() && isValidId(testId);
+      allow create: if isAdmin() && isValidId(testId);
+      allow update, delete: if isAdmin() && isValidId(testId);
     }
 
     // Test Results

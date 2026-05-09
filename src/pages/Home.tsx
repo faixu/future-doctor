@@ -40,7 +40,7 @@ export default function Home() {
             transition={{ delay: 0.1 }}
             className="text-6xl font-black text-white leading-tight uppercase tracking-tighter italic"
           >
-            Welcome <br/><span className="text-cyan-400">Future Doctor</span>
+            Welcome <br/>Future <br/><span className="text-red-600">Doctor</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 10 }}
