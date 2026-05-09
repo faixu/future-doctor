@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Trash2, BrainCircuit, Sparkles, MessageSquarePlus } from "lucide-react";
+import { Send, Bot, User, Trash2, BrainCircuit, Sparkles, MessageSquarePlus, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
 import { solveDoubt } from "../services/gemini";

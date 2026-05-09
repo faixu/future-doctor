@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useAuth } from "../context/AuthContext";
+import { cn } from "../lib/utils";
 
 const performanceData = [
   { name: "Mon", score: 620 },

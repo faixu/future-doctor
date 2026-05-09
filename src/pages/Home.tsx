@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Zap, BookOpen, Clock, Users, ArrowRight, Play } from "lucide-react";
 import { motion } from "motion/react";
 import { Link } from "react-router-dom";
+import { cn } from "../lib/utils";
 
 export default function Home() {
   const [timeLeft, setTimeLeft] = useState("");
@@ -156,8 +157,4 @@ function SubjectCard({ title, count, color, icon, progress }: any) {
       </button>
     </motion.div>
   );
-}
-
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(" ");
 }

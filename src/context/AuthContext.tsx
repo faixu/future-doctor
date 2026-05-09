@@ -5,6 +5,7 @@ import { auth, googleProvider } from "../lib/firebase";
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  signingIn: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -14,6 +15,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -24,7 +26,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const loginWithGoogle = async () => {
-    await signInWithPopup(auth, googleProvider);
+    if (signingIn) return;
+    setSigningIn(true);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error: any) {
+      console.error("Auth Error:", error);
+      if (error.code === 'auth/popup-blocked') {
+        alert("The login popup was blocked. Please enable popups for this site.");
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        console.warn("Popup request was cancelled, likely due to concurrent attempts.");
+      }
+    } finally {
+      setSigningIn(false);
+    }
   };
 
   const logout = async () => {
@@ -32,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, signingIn, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

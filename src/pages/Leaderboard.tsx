@@ -116,7 +116,29 @@ export default function Leaderboard() {
 }
 
 function PodiumCard({ user, delay, rank, isGold, color }: any) {
-  const accentColor = isGold ? 'yellow-400' : color;
+  const rankColors: any = {
+    "slate-400": "bg-slate-400",
+    "orange-600": "bg-orange-600",
+    "yellow-400": "bg-yellow-400"
+  };
+  
+  const borderColors: any = {
+    "slate-400": "border-slate-400/20",
+    "orange-600": "border-orange-600/20",
+    "yellow-400": "border-yellow-400/30"
+  };
+
+  const textColors: any = {
+    "slate-400": "text-slate-400",
+    "orange-600": "text-orange-600",
+    "yellow-400": "text-yellow-400"
+  };
+
+  const gradientColors: any = {
+    "slate-400": "from-slate-400/20 to-slate-400/40",
+    "orange-600": "from-orange-600/20 to-orange-600/40",
+    "yellow-400": "from-yellow-400/20 to-yellow-400/40"
+  };
   
   return (
     <motion.div 
@@ -130,17 +152,17 @@ function PodiumCard({ user, delay, rank, isGold, color }: any) {
     >
       <div className={cn(
         "absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center font-black italic border-4 border-[#080B12]",
-        isGold ? "w-16 h-16 bg-yellow-400 text-slate-950 shadow-2xl shadow-yellow-400/20" : `w-12 h-12 bg-${color} text-slate-950`
+        isGold ? "w-16 h-16 bg-yellow-400 text-slate-950 shadow-2xl shadow-yellow-400/20" : `w-12 h-12 ${rankColors[color]} text-slate-950`
       )}>
         {rank}
       </div>
       
       <div className={cn(
         "rounded-full mx-auto p-1 border-2",
-        isGold ? "w-32 h-32 bg-gradient-to-tr from-yellow-400/20 to-yellow-400/40 border-yellow-400/30" : `w-24 h-24 bg-gradient-to-tr from-${color}/20 to-${color}/40 border-${color}/20`
+        isGold ? "w-32 h-32 bg-gradient-to-tr from-yellow-400/20 to-yellow-400/40 border-yellow-400/30" : `w-24 h-24 bg-gradient-to-tr ${gradientColors[color]} ${borderColors[color]}`
       )}>
         <div className="w-full h-full rounded-full bg-slate-900 flex items-center justify-center relative overflow-hidden">
-          <span className={cn("font-black", isGold ? "text-3xl text-yellow-400" : `text-2xl text-${color}`)}>
+          <span className={cn("font-black", isGold ? "text-3xl text-yellow-400" : `text-2xl ${textColors[color]}`)}>
             {user.avatar}
           </span>
           {isGold && <div className="absolute inset-0 bg-gradient-to-t from-yellow-400/10 to-transparent" />}

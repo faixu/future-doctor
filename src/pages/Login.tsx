@@ -5,7 +5,7 @@ import { GraduationCap, Zap, Shield, Target } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function Login() {
-  const { loginWithGoogle, user } = useAuth();
+  const { loginWithGoogle, user, signingIn } = useAuth();
   const navigate = useNavigate();
 
   React.useEffect(() => {
@@ -21,23 +21,30 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md glass-dark p-8 md:p-12 rounded-[2.5rem] relative z-10 border border-white/5"
+        className="w-full max-w-md bg-[#0D121F] p-8 md:p-12 rounded-[2.5rem] relative z-10 border border-slate-800 shadow-2xl"
       >
         <div className="flex flex-col items-center text-center mb-10">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-500/20">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white mb-6 shadow-xl shadow-cyan-500/20">
             <GraduationCap className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white mb-3">NEET Cracker AI</h1>
-          <p className="text-slate-400 text-lg">Your medical journey starts here. AI-enhanced preparation.</p>
+          <h1 className="text-3xl font-black text-white mb-2 uppercase italic tracking-tighter">NEET Cracker AI</h1>
+          <p className="text-slate-400 text-sm font-medium italic">Next-Gen Clinical Preparation Engine</p>
         </div>
 
         <div className="space-y-6">
           <button
             onClick={loginWithGoogle}
-            className="w-full flex items-center justify-center gap-4 bg-white text-slate-900 font-bold py-4 px-6 rounded-2xl hover:bg-slate-100 transition-all duration-200 shadow-lg"
+            disabled={signingIn}
+            className="w-full flex items-center justify-center gap-4 bg-white text-slate-900 font-black italic uppercase tracking-widest py-5 px-6 rounded-2xl hover:bg-slate-100 transition-all duration-200 shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
           >
-            <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
-            Sign in with Google
+            {signingIn ? (
+              <div className="w-5 h-5 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <img src="https://www.google.com/favicon.ico" className="w-5 h-5" alt="Google" />
+                Sign in with Google
+              </>
+            )}
           </button>
           
           <div className="flex items-center gap-4 py-2">
