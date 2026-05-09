@@ -79,6 +79,50 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ai/generate-mcq", async (req, res) => {
+    try {
+      const { topic, subject, difficulty } = req.body;
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      }
+
+      // @ts-ignore
+      const ai = new GoogleGenAI(apiKey);
+      // @ts-ignore
+      const model = ai.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      });
+      
+      const prompt = `Generate a high-quality NEET level MCQ for the following:
+      Topic: ${topic}
+      Subject: ${subject}
+      Difficulty: ${difficulty}
+
+      Return a single JSON object with:
+      {
+        "text": "The question content...",
+        "options": ["Option A", "Option B", "Option C", "Option D"],
+        "correctIndex": 0,
+        "solution": "Detailed step-by-step explanation...",
+        "ncertRef": "Reference to NCERT Class/Chapter/Page",
+        "tags": ["Tag1", "Tag2"],
+        "estimatedTime": 60
+      }`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      res.json(JSON.parse(response.text()));
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Mock API for rankings (if needed before Firestore is populated)
   app.get("/api/rankings", (req, res) => {
     res.json([
