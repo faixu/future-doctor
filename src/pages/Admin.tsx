@@ -633,6 +633,8 @@ function MockTestCreator() {
   const [editingTest, setEditingTest] = useState<Partial<MockTest> | null>(null);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("All");
+  const [difficultyFilter, setDifficultyFilter] = useState("All");
   const [isAIGenerating, setIsAIGenerating] = useState(false);
   const [aiCriteria, setAiCriteria] = useState({
     totalQuestions: 180,
@@ -929,23 +931,88 @@ function MockTestCreator() {
           </div>
 
           <div className="lg:col-span-2 bg-[#0D121F] border border-slate-800 rounded-[2.5rem] overflow-hidden flex flex-col min-h-[600px]">
-             <div className="p-8 border-b border-slate-800 flex items-center justify-between">
-                <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Question <span className="text-cyan-400">Inventory Bank</span></h3>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                  <input 
-                    type="text" 
-                    placeholder="FILTER QUESTIONS..."
-                    className="bg-[#070A13] border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-[10px] text-white font-black italic tracking-widest outline-none focus:border-cyan-500 transition-all w-64"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+             <div className="p-8 border-b border-slate-800 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Question <span className="text-cyan-400">Inventory Bank</span></h3>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                    <input 
+                      type="text" 
+                      placeholder="SEARCH QUESTIONS..."
+                      className="bg-[#070A13] border border-slate-800 rounded-xl py-2 pl-10 pr-4 text-[10px] text-white font-black italic tracking-widest outline-none focus:border-cyan-500 transition-all w-64"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {["All", "Physics", "Chemistry", "Biology", "Botany", "Zoology"].map(sub => (
+                    <button
+                      key={sub}
+                      onClick={() => setSubjectFilter(sub)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border",
+                        subjectFilter === sub 
+                          ? "bg-cyan-500 border-cyan-500 text-white shadow-lg shadow-cyan-900/20" 
+                          : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                      )}
+                    >
+                      {sub}
+                    </button>
+                  ))}
+                  <div className="w-px h-4 bg-slate-800 mx-2 self-center" />
+                  {["All", "Easy", "Medium", "Hard"].map(diff => (
+                    <button
+                      key={diff}
+                      onClick={() => setDifficultyFilter(diff)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border",
+                        difficultyFilter === diff 
+                          ? "bg-purple-500 border-purple-500 text-white shadow-lg shadow-purple-900/20" 
+                          : "bg-slate-900 border-slate-800 text-slate-500 hover:border-slate-700"
+                      )}
+                    >
+                      {diff}
+                    </button>
+                  ))}
+                  
+                  <div className="ml-auto flex gap-2">
+                    <button 
+                      onClick={() => {
+                        const filtered = allQuestions.filter(q => {
+                          const matchesSearch = q.text.toLowerCase().includes(searchQuery.toLowerCase()) || q.chapter.toLowerCase().includes(searchQuery.toLowerCase());
+                          const matchesSubject = subjectFilter === "All" || q.subject === subjectFilter;
+                          const matchesDifficulty = difficultyFilter === "All" || q.difficulty === difficultyFilter;
+                          return matchesSearch && matchesSubject && matchesDifficulty;
+                        });
+                        const currentIds = new Set(editingTest.questionIds || []);
+                        filtered.forEach(q => currentIds.add(q.id));
+                        setEditingTest({...editingTest, questionIds: Array.from(currentIds)});
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border bg-slate-900 border-slate-800 text-cyan-400 hover:border-cyan-500/50"
+                    >
+                      Select Filtered
+                    </button>
+                    <button 
+                      onClick={() => setEditingTest({...editingTest, questionIds: []})}
+                      className="px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all border bg-slate-900 border-slate-800 text-red-400 hover:border-red-500/50"
+                    >
+                      Clear Selection
+                    </button>
+                  </div>
                 </div>
              </div>
 
              <div className="flex-1 overflow-y-auto p-8 space-y-4 max-h-[700px]">
                 {allQuestions
-                  .filter(q => q.text.toLowerCase().includes(searchQuery.toLowerCase()) || q.chapter.toLowerCase().includes(searchQuery.toLowerCase()) || q.subject.toLowerCase().includes(searchQuery.toLowerCase()))
+                  .filter(q => {
+                    const matchesSearch = q.text.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                         q.chapter.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchesSubject = subjectFilter === "All" || q.subject === subjectFilter;
+                    const matchesDifficulty = difficultyFilter === "All" || q.difficulty === difficultyFilter;
+                    return matchesSearch && matchesSubject && matchesDifficulty;
+                  })
                   .map((q) => {
                   const isSelected = editingTest.questionIds?.includes(q.id);
                   return (
