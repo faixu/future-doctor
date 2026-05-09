@@ -14,6 +14,7 @@ import Sidebar from "./components/Sidebar";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Admin from "./pages/Admin";
+import AdminLogin from "./pages/AdminLogin";
 import Dashboard from "./pages/Dashboard";
 import AITutor from "./pages/AITutor";
 import MockTests from "./pages/MockTests";
@@ -54,6 +55,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           
           <Route path="/admin" element={
             <AdminRoute>

@@ -3,6 +3,8 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { fileURLToPath } from "url";
 import { GoogleGenAI } from "@google/genai";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,10 +14,50 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+  app.use(cookieParser());
 
   // API Health Check
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // Admin Auth Endpoints
+  app.post("/api/admin/login", (req, res) => {
+    const { email, password } = req.body;
+    const adminEmail = "admin@example.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    const jwtSecret = process.env.JWT_SECRET || "fallback-secret";
+
+    if (email === adminEmail && password === adminPassword) {
+      const token = jwt.sign({ email, role: "admin" }, jwtSecret, { expiresIn: "1d" });
+      res.cookie("admin_token", token, { 
+        httpOnly: true, 
+        secure: true, // Always true in AI Studio since it's behind proxy
+        sameSite: "none", // Needed for iframe/cross-site behavior if applicable
+        maxAge: 86400000 
+      });
+      return res.json({ success: true, user: { email, role: "admin" } });
+    }
+    res.status(401).json({ error: "Invalid credentials" });
+  });
+
+  app.get("/api/admin/verify", (req, res) => {
+    const token = req.cookies.admin_token;
+    const jwtSecret = process.env.JWT_SECRET || "fallback-secret";
+
+    if (!token) return res.status(401).json({ authenticated: false });
+    
+    try {
+      const decoded = jwt.verify(token, jwtSecret);
+      res.json({ authenticated: true, user: decoded });
+    } catch {
+      res.status(401).json({ authenticated: false });
+    }
+  });
+
+  app.post("/api/admin/logout", (req, res) => {
+    res.clearCookie("admin_token");
+    res.json({ success: true });
   });
 
   // Gemini AI Endpoints

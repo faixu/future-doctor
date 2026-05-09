@@ -9,6 +9,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  checkServerAdmin: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,16 +20,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+  const [isServerAdmin, setIsServerAdmin] = useState(false);
 
-  const isAdmin = user ? ADMIN_EMAILS.includes(user.email || "") : false;
+  const isAdmin = (user ? ADMIN_EMAILS.includes(user.email || "") : false) || isServerAdmin;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
     });
+    
+    // Check for server admin session
+    checkServerAdmin();
+    
     return unsubscribe;
   }, []);
+
+  const checkServerAdmin = async () => {
+    try {
+      const res = await fetch("/api/admin/verify");
+      if (res.ok) {
+        const data = await res.json();
+        setIsServerAdmin(data.authenticated);
+      } else {
+        setIsServerAdmin(false);
+      }
+    } catch {
+      setIsServerAdmin(false);
+    }
+  };
 
   const loginWithGoogle = async () => {
     if (signingIn) return;
@@ -49,10 +69,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await signOut(auth);
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+      setIsServerAdmin(false);
+    } catch (e) {
+      console.error("Server logout error:", e);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signingIn, isAdmin, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, signingIn, isAdmin, loginWithGoogle, logout, checkServerAdmin }}>
       {children}
     </AuthContext.Provider>
   );
