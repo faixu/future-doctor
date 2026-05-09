@@ -9,7 +9,8 @@ import {
   History, 
   Settings, 
   LogOut,
-  GraduationCap
+  GraduationCap,
+  ShieldCheck
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useAuth } from "../context/AuthContext";
@@ -26,7 +27,7 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
 
   return (
     <aside className="w-64 bg-[#0D121F] border-r border-slate-800 h-screen sticky top-0 flex flex-col shrink-0 hidden lg:flex">
@@ -61,6 +62,21 @@ export default function Sidebar() {
               </Link>
             );
           })}
+          
+          {isAdmin && (
+            <Link
+              to="/admin"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group text-sm font-semibold",
+                location.pathname === "/admin"
+                  ? "bg-red-500/10 text-red-400 border border-red-500/20" 
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+              )}
+            >
+              <ShieldCheck className={cn("w-4 h-4", location.pathname === "/admin" ? "text-red-400" : "text-slate-500 group-hover:text-red-400")} />
+              <span>Admin Panel</span>
+            </Link>
+          )}
         </nav>
       </div>
 

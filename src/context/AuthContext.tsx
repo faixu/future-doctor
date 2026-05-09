@@ -6,16 +6,21 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   signingIn: boolean;
+  isAdmin: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ADMIN_EMAILS = ["Flust786@gmail.com"];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
+
+  const isAdmin = user ? ADMIN_EMAILS.includes(user.email || "") : false;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -47,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signingIn, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, signingIn, isAdmin, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

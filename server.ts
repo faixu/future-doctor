@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { fileURLToPath } from "url";
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,14 +22,15 @@ async function startServer() {
   app.post("/api/ai/solve", async (req, res) => {
     try {
       const { query, context } = req.body;
-      const { GoogleGenAI } = await import("@google/genai");
       const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
         return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      // @ts-ignore
+      const ai = new GoogleGenAI(apiKey);
+      // @ts-ignore
       const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
       
       const prompt = `You are a NEET Expert AI Tutor. Help the student with their doubt.
@@ -48,14 +50,15 @@ async function startServer() {
   app.post("/api/ai/quiz", async (req, res) => {
     try {
       const { subject, topic } = req.body;
-      const { GoogleGenAI } = await import("@google/genai");
       const apiKey = process.env.GEMINI_API_KEY;
       
       if (!apiKey) {
         return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
       }
 
-      const ai = new GoogleGenAI({ apiKey });
+      // @ts-ignore
+      const ai = new GoogleGenAI(apiKey);
+      // @ts-ignore
       const model = ai.getGenerativeModel({ 
         model: "gemini-1.5-flash",
         generationConfig: {
