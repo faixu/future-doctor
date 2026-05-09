@@ -4,7 +4,7 @@
  */
 
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Components
@@ -32,17 +32,44 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, loading } = useAuth();
+  const { isAdmin, loading } = useAuth();
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-white">Verifying credentials...</div>;
-  if (!user || !isAdmin) return <Navigate to="/" />;
+  if (!isAdmin) return <Navigate to="/admin/login" />;
   return <>{children}</>;
 }
 
 function MainLayout({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const [clickCount, setClickCount] = React.useState(0);
+
+  const handleLogoClick = () => {
+    setClickCount((prev) => {
+      const next = prev + 1;
+      if (next >= 5) {
+        navigate("/admin");
+        return 0;
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="flex min-h-screen bg-slate-950">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#0D121F] border-b border-slate-800 px-6 flex items-center justify-between z-50">
+        <div 
+          className="flex items-center gap-2 cursor-pointer"
+          onClick={handleLogoClick}
+        >
+          <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">
+            N
+          </div>
+          <h1 className="text-lg font-bold text-white italic">NEET <span className="text-cyan-400 font-medium">Cracker AI</span></h1>
+        </div>
+      </div>
+
       <Sidebar />
-      <main className="flex-1 min-h-screen overflow-y-auto">
+      <main className="flex-1 min-h-screen overflow-y-auto pt-16 lg:pt-0">
         {children}
       </main>
     </div>

@@ -18,16 +18,18 @@ const ADMIN_EMAILS = ["Flust786@gmail.com"];
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [firebaseLoading, setFirebaseLoading] = useState(true);
+  const [serverLoading, setServerLoading] = useState(true);
   const [signingIn, setSigningIn] = useState(false);
   const [isServerAdmin, setIsServerAdmin] = useState(false);
 
-  const isAdmin = (user ? ADMIN_EMAILS.includes(user.email || "") : false) || isServerAdmin;
+  const loading = firebaseLoading || serverLoading;
+  const isAdmin = (user ? ADMIN_EMAILS.map(e => e.toLowerCase()).includes(user.email?.toLowerCase() || "") : false) || isServerAdmin;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
+      setFirebaseLoading(false);
     });
     
     // Check for server admin session
@@ -47,6 +49,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       setIsServerAdmin(false);
+    } finally {
+      setServerLoading(false);
     }
   };
 

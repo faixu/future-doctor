@@ -24,12 +24,13 @@ async function startServer() {
   // Admin Auth Endpoints
   app.post("/api/admin/login", (req, res) => {
     const { email, password } = req.body;
-    const adminEmail = "admin@example.com";
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    // Normalized to match user's provided email and password
+    const adminEmail = "Flust786@gmail.com";
+    const adminPassword = process.env.ADMIN_PASSWORD || "##Royal@786";
     const jwtSecret = process.env.JWT_SECRET || "fallback-secret";
 
-    if (email === adminEmail && password === adminPassword) {
-      const token = jwt.sign({ email, role: "admin" }, jwtSecret, { expiresIn: "1d" });
+    if (email?.toLowerCase() === adminEmail.toLowerCase() && password === adminPassword) {
+      const token = jwt.sign({ email: adminEmail, role: "admin" }, jwtSecret, { expiresIn: "1d" });
       res.cookie("admin_token", token, { 
         httpOnly: true, 
         secure: true, // Always true in AI Studio since it's behind proxy

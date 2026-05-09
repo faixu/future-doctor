@@ -1,5 +1,5 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   Home, 
   LayoutDashboard, 
@@ -27,12 +27,28 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { logout, isAdmin } = useAuth();
+  const [clickCount, setClickCount] = useState(0);
+
+  const handleLogoClick = () => {
+    setClickCount(prev => {
+      const next = prev + 1;
+      if (next >= 5) {
+        navigate("/admin");
+        return 0;
+      }
+      return next;
+    });
+  };
 
   return (
     <aside className="w-64 bg-[#0D121F] border-r border-slate-800 h-screen sticky top-0 flex flex-col shrink-0 hidden lg:flex">
       <div className="p-8">
-        <div className="flex items-center gap-3 mb-10">
+        <div 
+          className="flex items-center gap-3 mb-10 cursor-pointer transition-transform active:scale-95"
+          onClick={handleLogoClick}
+        >
           <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
             N
           </div>
