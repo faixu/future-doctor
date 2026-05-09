@@ -40,7 +40,7 @@ export default function Home() {
             transition={{ delay: 0.1 }}
             className="text-6xl font-black text-white leading-tight uppercase tracking-tighter italic"
           >
-            Crack NEET with <br/><span className="text-cyan-400">AI Precision.</span>
+            Welcome <br/><span className="text-cyan-400">Future Doctor</span>
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0 }}
