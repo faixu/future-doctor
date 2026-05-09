@@ -42,6 +42,14 @@ export default function Home() {
           >
             Welcome <br/><span className="text-cyan-400">Future Doctor</span>
           </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-xl font-bold text-cyan-500/80 uppercase tracking-[0.3em] mt-4 mb-2 italic"
+          >
+            Turning Aspirants into Doctors
+          </motion.p>
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

@@ -27,7 +27,7 @@ export default function Login() {
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-white mb-6 shadow-xl shadow-cyan-500/20">
             <GraduationCap className="w-10 h-10" />
           </div>
-          <h1 className="text-3xl font-black text-white mb-2 uppercase italic tracking-tighter">NEET Cracker AI</h1>
+          <h1 className="text-3xl font-black text-white mb-2 uppercase italic tracking-tighter">Quantum NEET</h1>
           <p className="text-slate-400 text-sm font-medium italic">Next-Gen Clinical Preparation Engine</p>
         </div>
 

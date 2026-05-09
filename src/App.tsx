@@ -26,7 +26,7 @@ import StudyMaterial from "./pages/StudyMaterial";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-white">Loading NEET Cracker AI...</div>;
+  if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-950 text-white">Loading Quantum NEET...</div>;
   if (!user) return <Navigate to="/login" />;
   return <>{children}</>;
 }
@@ -62,9 +62,9 @@ function MainLayout({ children }: { children: React.ReactNode }) {
           onClick={handleLogoClick}
         >
           <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg">
-            N
+            Q
           </div>
-          <h1 className="text-lg font-bold text-white italic">NEET <span className="text-cyan-400 font-medium">Cracker AI</span></h1>
+          <h1 className="text-lg font-bold text-white italic">Quantum <span className="text-cyan-400 font-medium">NEET</span></h1>
         </div>
       </div>
 

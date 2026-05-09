@@ -50,11 +50,11 @@ export default function Sidebar() {
           onClick={handleLogoClick}
         >
           <div className="w-8 h-8 bg-gradient-to-tr from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-cyan-500/20">
-            N
+            Q
           </div>
           <div className="flex items-center gap-1">
-            <h1 className="text-xl font-bold tracking-tight text-white italic">NEET</h1>
-            <span className="text-cyan-400 font-medium italic text-sm">Cracker AI</span>
+            <h1 className="text-xl font-bold tracking-tight text-white italic">Quantum</h1>
+            <span className="text-cyan-400 font-medium italic text-sm">NEET</span>
           </div>
         </div>
 
