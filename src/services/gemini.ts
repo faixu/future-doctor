@@ -1,19 +1,13 @@
-import { GoogleGenAI } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function solveDoubt(query: string, context?: string) {
-  const prompt = `You are a NEET Expert AI Tutor. Help the student with their doubt.
-  ${context ? `Context: ${context}` : ""}
-  User Query: ${query}
-  Provide a detailed explanation, NCERT references if possible, and a clear summary.`;
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
+    const response = await fetch("/api/ai/solve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, context }),
     });
-    return response.text;
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data.text;
   } catch (error) {
     console.error("AI Error:", error);
     return "Sorry, I couldn't process that query right now.";
@@ -21,19 +15,15 @@ export async function solveDoubt(query: string, context?: string) {
 }
 
 export async function generateQuickQuiz(subject: string, topic: string) {
-  const prompt = `Generate a 5-question NEET level MCQ quiz about ${topic} in ${subject}. 
-  Return the response in JSON format:
-  [{ "question": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..." }]`;
-
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-      }
+    const response = await fetch("/api/ai/quiz", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject, topic }),
     });
-    return JSON.parse(response.text);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    return data;
   } catch (error) {
     console.error("AI Error:", error);
     return [];

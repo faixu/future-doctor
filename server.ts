@@ -17,6 +17,65 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Gemini AI Endpoints
+  app.post("/api/ai/solve", async (req, res) => {
+    try {
+      const { query, context } = req.body;
+      const { GoogleGenAI } = await import("@google/genai");
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
+      
+      const prompt = `You are a NEET Expert AI Tutor. Help the student with their doubt.
+      ${context ? `Context: ${context}` : ""}
+      User Query: ${query}
+      Provide a detailed explanation, NCERT references if possible, and a clear summary.`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      res.json({ text: response.text() });
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/ai/quiz", async (req, res) => {
+    try {
+      const { subject, topic } = req.body;
+      const { GoogleGenAI } = await import("@google/genai");
+      const apiKey = process.env.GEMINI_API_KEY;
+      
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+      const model = ai.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+        }
+      });
+      
+      const prompt = `Generate a 5-question NEET level MCQ quiz about ${topic} in ${subject}. 
+      Return the response in JSON format:
+      [{ "question": "...", "options": ["A", "B", "C", "D"], "correctIndex": 0, "explanation": "..." }]`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      res.json(JSON.parse(response.text()));
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Mock API for rankings (if needed before Firestore is populated)
   app.get("/api/rankings", (req, res) => {
     res.json([
