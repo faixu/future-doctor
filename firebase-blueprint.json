@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Student profile information and settings",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "xp": { "type": "number" },
+        "level": { "type": "number" },
+        "streak": { "type": "number" },
+        "totalStudyHours": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Question": {
+      "title": "NEET Question",
+      "description": "Individual MCQ question for tests or practice",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string", "enum": ["Physics", "Chemistry", "Biology"] },
+        "chapter": { "type": "string" },
+        "year": { "type": "number" },
+        "text": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "string" } },
+        "correctIndex": { "type": "number" },
+        "explanation": { "type": "string" },
+        "ncertRef": { "type": "string" },
+        "difficulty": { "type": "string", "enum": ["Easy", "Medium", "Hard"] }
+      },
+      "required": ["text", "options", "correctIndex", "subject"]
+    },
+    "MockTest": {
+      "title": "Mock Test",
+      "description": "Definition of a full or partial mock test",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["Full Syllabus", "Chapter Test", "Daily Quiz"] },
+        "duration": { "type": "number" },
+        "questionIds": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "TestResult": {
+      "title": "Test Result",
+      "description": "User performance data for a mock test",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "testId": { "type": "string" },
+        "score": { "type": "number" },
+        "correct": { "type": "number" },
+        "incorrect": { "type": "number" },
+        "unattempted": { "type": "number" },
+        "timeTaken": { "type": "number" },
+        "accuracy": { "type": "number" },
+        "rankPredicted": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Doubt": {
+      "title": "AI Doubt",
+      "description": "A doubt asked by the student and solved by AI",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "query": { "type": "string" },
+        "response": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Main user records"
+    },
+    "/questions/{questionId}": {
+      "schema": "Question",
+      "description": "Global bank of MCQs"
+    },
+    "/mockTests/{testId}": {
+      "schema": "MockTest",
+      "description": "Mock test configurations"
+    },
+    "/results/{resultId}": {
+      "schema": "TestResult",
+      "description": "User test history"
+    },
+    "/doubts/{doubtId}": {
+      "schema": "Doubt",
+      "description": "AI assistance history"
+    }
+  }
+}

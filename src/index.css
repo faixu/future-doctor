@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;300;400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-brand-bg: #080B12;
+  --color-brand-sidebar: #0D121F;
+  --color-brand-accent: #22d3ee;
+}
+
+@layer base {
+  body {
+    @apply bg-[#080B12] text-slate-200 font-sans antialiased;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-slate-900/40 backdrop-blur-md border border-slate-700/50;
+  }
+  .card-gradient {
+    @apply bg-gradient-to-br from-indigo-900/20 to-[#0D121F] border border-slate-700/50;
+  }
+}
+
+/* Custom Scrollbar for the dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-[#080B12];
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-800 rounded-full hover:bg-slate-700;
+}
+

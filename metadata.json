@@ -1,0 +1,11 @@
+{
+  "name": "NEET Cracker AI",
+  "description": "A premium AI-powered NEET preparation platform featuring mock tests, PYQs, AI tutoring, and deep performance analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "AI-powered doubt solving",
+    "Real-time mock test engine",
+    "Comprehensive NEET analytics",
+    "Gamified learning path"
+  ]
+}
