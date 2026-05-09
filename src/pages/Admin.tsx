@@ -751,6 +751,60 @@ function MockTestCreator() {
     }, 1500);
   };
 
+  const handleSeedSampleData = async () => {
+    if (!confirm("This will create 40 new questions (10 per subject) and a new mock test. Proceed?")) return;
+    
+    setLoading(true);
+    try {
+      const subjectsList = ["Physics", "Chemistry", "Botany", "Zoology"];
+      const difficultiesList = ["Easy", "Medium", "Hard"];
+      const newQuestionIds: string[] = [];
+
+      for (const subject of subjectsList) {
+        for (let i = 1; i <= 10; i++) {
+          const q = {
+            subject,
+            chapter: `${subject} Chapter ${Math.ceil(i/3)}`,
+            topic: `Topic ${i}`,
+            difficulty: difficultiesList[i % 3] as "Easy" | "Medium" | "Hard",
+            text: `[SAMPLE] ${subject} Question ${i}: What is the primary characteristic of the ${i % 2 === 0 ? 'biological' : 'physical'} system described in this context?`,
+            options: ["Increasingly active", "Decreasingly stable", "Moderately neutral", "Highly reactive"],
+            correctIndex: Math.floor(Math.random() * 4),
+            solution: "Detailed step-by-step solution for the sample question to demonstrate the clinical analysis.",
+            ncertRef: "NCERT Unit " + Math.ceil(i/2),
+            tags: ["sample", subject.toLowerCase()],
+            marks: 4,
+            negativeMarks: 1,
+            estimatedTime: 60,
+            createdAt: serverTimestamp()
+          };
+          const ref = await addDoc(collection(db, "questions"), q);
+          newQuestionIds.push(ref.id);
+        }
+      }
+
+      await addDoc(collection(db, "mockTests"), {
+        title: "COMPREHENSIVE 40-Q SAMPLE MOCK",
+        type: "Full Syllabus",
+        duration: 180,
+        questionIds: newQuestionIds,
+        status: "published",
+        randomizeQuestions: true,
+        releaseDate: new Date().toISOString().split('T')[0],
+        createdAt: serverTimestamp()
+      });
+
+      alert("Successfully seeded 40 questions and 1 mock test!");
+      fetchTests();
+      fetchAllQuestions();
+    } catch (err) {
+      console.error(err);
+      alert("Error seeding data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleSaveTest = async () => {
     if (!editingTest?.title) return alert("Title is required");
     
@@ -1067,13 +1121,23 @@ function MockTestCreator() {
           <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">Mock Test <span className="text-purple-400">Architect</span></h2>
           <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Deploy high-precision exam simulations</p>
         </div>
-        <button 
-          onClick={handleCreateNew}
-          className="flex items-center gap-3 bg-purple-500 hover:bg-purple-400 px-8 py-4 rounded-2xl font-black italic uppercase tracking-widest text-white shadow-xl shadow-purple-900/20 transition-all"
-        >
-          <Plus className="w-5 h-5" />
-          Create Test Structure
-        </button>
+        <div className="flex gap-4">
+          <button 
+            onClick={handleSeedSampleData}
+            disabled={loading}
+            className="flex items-center gap-3 bg-slate-800 hover:bg-slate-700 px-6 py-4 rounded-2xl font-black italic uppercase tracking-widest text-slate-400 hover:text-white transition-all disabled:opacity-50"
+          >
+            <Database className="w-5 h-5" />
+            Seed Sample Test
+          </button>
+          <button 
+            onClick={handleCreateNew}
+            className="flex items-center gap-3 bg-purple-500 hover:bg-purple-400 px-8 py-4 rounded-2xl font-black italic uppercase tracking-widest text-white shadow-xl shadow-purple-900/20 transition-all"
+          >
+            <Plus className="w-5 h-5" />
+            Create Test Structure
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
