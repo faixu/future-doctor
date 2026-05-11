@@ -22,7 +22,8 @@ import {
   Sparkles,
   Save,
   ArrowLeft,
-  BookOpen
+  BookOpen,
+  GraduationCap
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -37,8 +38,9 @@ import {
   limit,
   serverTimestamp
 } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 import { cn } from "@/lib/utils";
+import { onAuthStateChanged, type User } from "firebase/auth";
 import { 
   BarChart, 
   Bar, 
@@ -100,6 +102,14 @@ interface Paper {
 export default function Admin() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: Layout },
@@ -199,6 +209,14 @@ export default function Admin() {
 
         {/* Content Body */}
         <div className="p-8">
+          {user && !user.emailVerified && (
+            <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/50 rounded-2xl flex items-center gap-4 text-amber-400 animate-in fade-in slide-in-from-top-4">
+              <ShieldCheck className="w-5 h-5 shrink-0" />
+              <div className="text-xs font-black uppercase tracking-widest italic">
+                Email Not Verified: Publishing will be restricted based on security rules. Please verify your email.
+              </div>
+            </div>
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -374,15 +392,32 @@ function AddQuestionForm() {
 
   const handleSave = async (published: boolean = true) => {
     try {
+      if (!formData.text || !formData.subject || !formData.chapter) {
+        throw new Error("Missing required fields: Content, Subject, and Chapter are mandatory.");
+      }
+
       await addDoc(collection(db, "questions"), {
         ...formData,
         status: published ? "published" : "draft",
         createdAt: serverTimestamp()
       });
-      alert("Question Added Successfully!");
-      // Reset form or redirect
-    } catch (error) {
-      console.error(error);
+      alert(`Success: Question ${published ? 'Published' : 'Saved as Draft'}!`);
+      // Reset form
+      setFormData({
+        subject: "Biology",
+        difficulty: "Medium",
+        options: ["", "", "", ""],
+        correctIndex: 0,
+        marks: 4,
+        negativeMarks: -1,
+        estimatedTime: 60
+      });
+    } catch (error: any) {
+      console.error("Firestore Publish Error:", error);
+      const errorMessage = error.message || String(error);
+      alert(`Publish Failed: ${errorMessage.includes("insufficient permissions") 
+        ? "Access Denied. Ensure your email (Flust786@gmail.com) is verified and you have admin rights." 
+        : errorMessage}`);
     }
   };
 
@@ -797,9 +832,12 @@ function MockTestCreator() {
       alert("Successfully seeded 40 questions and 1 mock test!");
       fetchTests();
       fetchAllQuestions();
-    } catch (err) {
-      console.error(err);
-      alert("Error seeding data");
+    } catch (err: any) {
+      console.error("Seeding Error:", err);
+      const errorMessage = err.message || String(err);
+      alert(`Seeding Failed: ${errorMessage.includes("insufficient permissions") 
+        ? "Permissions Error. Ensure your email is verified." 
+        : errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -826,9 +864,12 @@ function MockTestCreator() {
       setEditingTest(null);
       fetchTests();
       alert("Test saved successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Error saving test");
+    } catch (err: any) {
+      console.error("Firestore Save Test Error:", err);
+      const errorMessage = err.message || String(err);
+      alert(`Save Test Failed: ${errorMessage.includes("insufficient permissions") 
+        ? "Access Denied. Admin permissions require a verified email (Flust786@gmail.com)." 
+        : errorMessage}`);
     }
   };
 
@@ -1325,22 +1366,3 @@ function StudentsView() {
   );
 }
 
-function GraduationCap(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
-      <path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5" />
-    </svg>
-  );
-}
