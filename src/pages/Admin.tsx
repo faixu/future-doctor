@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import Papa from "papaparse";
+import { GoogleGenAI, Type } from "@google/genai";
 import { 
   ShieldCheck, 
   Plus, 
@@ -23,7 +25,10 @@ import {
   Save,
   ArrowLeft,
   BookOpen,
-  GraduationCap
+  GraduationCap,
+  X,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
@@ -38,9 +43,10 @@ import {
   limit,
   serverTimestamp
 } from "firebase/firestore";
-import { db, auth } from "../lib/firebase";
+import { db, auth, storage } from "../lib/firebase";
 import { cn } from "@/lib/utils";
 import { onAuthStateChanged, type User } from "firebase/auth";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { 
   BarChart, 
   Bar, 
@@ -120,6 +126,7 @@ export default function Admin() {
     { id: "students", label: "Students", icon: Users },
     { id: "analytics", label: "Analytics", icon: BarChart3 },
     { id: "upload", label: "Upload PDFs", icon: Upload },
+    { id: "bulk_import", label: "Bulk CSV Import", icon: FileText },
     { id: "ai_insights", label: "AI Insights", icon: BrainCircuit },
     { id: "settings", label: "Settings", icon: SettingsIcon },
   ];
@@ -230,8 +237,9 @@ export default function Admin() {
               {activeTab === "manage_questions" && <ManageBank />}
               {activeTab === "tests" && <MockTestCreator />}
               {activeTab === "analytics" && <AnalyticsView />}
-              {activeTab === "upload" && <UploadModule />}
-              {activeTab === "students" && <StudentsView />}
+              { activeTab === "upload" && <UploadModule /> }
+              { activeTab === "bulk_import" && <BulkImportModule /> }
+              { activeTab === "students" && <StudentsView /> }
             </motion.div>
           </AnimatePresence>
         </div>
@@ -1275,42 +1283,451 @@ function AnalyticsView() {
 }
 
 function UploadModule() {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [extractedQuestions, setExtractedQuestions] = useState<any[]>([]);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
+  const [error, setError] = useState<string | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        resolve(base64String.split(",")[1]);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const isPdf = file.type === "application/pdf";
+    const isImage = file.type.startsWith("image/");
+
+    if (!isPdf && !isImage) {
+      alert("Please upload a PDF or an Image file.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setUploadStatus(isPdf ? "Reading PDF data..." : "Uploading image and analyzing...");
+    setError(null);
+    setUploadedImageUrl(null);
+
+    try {
+      let imageUrl = null;
+      if (isImage) {
+        // Upload to Firebase Storage
+        const fileRef = ref(storage, `uploads/${Date.now()}_${file.name}`);
+        const snapshot = await uploadBytes(fileRef, file);
+        imageUrl = await getDownloadURL(snapshot.ref);
+        setUploadedImageUrl(imageUrl);
+      }
+
+      const base64Data = await fileToBase64(file);
+      const ai = new GoogleGenAI({ apiKey: (process as any).env.GEMINI_API_KEY });
+
+      setUploadStatus("AI is analyzing and extracting questions...");
+      
+      const response = await ai.models.generateContent({
+        model: "gemini-3.1-pro-preview",
+        contents: [
+          {
+            inlineData: {
+              mimeType: file.type,
+              data: base64Data,
+            },
+          },
+          {
+            text: "Extract all exam questions from this " + (isPdf ? "PDF" : "Image") + ". For each question, provide: text, 4 options in an array, correctIndex (0-3), solution, subject, chapter, difficulty (Easy, Medium, Hard), and NCERT reference. Return the data as a clean JSON array. If there is a diagram in the question, note where it should be but focus on the text content.",
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                text: { type: Type.STRING },
+                options: { type: Type.ARRAY, items: { type: Type.STRING } },
+                correctIndex: { type: Type.NUMBER },
+                solution: { type: Type.STRING },
+                subject: { type: Type.STRING },
+                chapter: { type: Type.STRING },
+                difficulty: { type: Type.STRING, enum: ["Easy", "Medium", "Hard"] },
+                ncertRef: { type: Type.STRING }
+              },
+              required: ["text", "options", "correctIndex", "subject", "chapter", "difficulty"]
+            }
+          },
+        },
+      });
+
+      const data = JSON.parse(response.text);
+      // Link image to questions if it was an image upload
+      const enrichedData = data.map((q: any) => ({
+        ...q,
+        imageUrl: imageUrl || undefined
+      }));
+      
+      setExtractedQuestions(enrichedData);
+      setUploadStatus("Successfully extracted " + enrichedData.length + " questions!");
+    } catch (err: any) {
+      console.error(err);
+      setError("AI Extraction failed. Please try a clearer file or check your connection.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const commitToBank = async () => {
+    setIsProcessing(true);
+    setUploadStatus("Committing questions to database...");
+    let successCount = 0;
+
+    try {
+      for (const q of extractedQuestions) {
+        await addDoc(collection(db, "questions"), {
+          ...q,
+          status: "published",
+          createdAt: serverTimestamp(),
+          marks: 4,
+          negativeMarks: -1,
+          estimatedTime: 60,
+          tags: ["ai-extracted", q.subject?.toLowerCase(), q.chapter?.toLowerCase()]
+        });
+        successCount++;
+        setUploadStatus(`Committing questions... (${successCount}/${extractedQuestions.length})`);
+      }
+      alert(`Successfully added ${successCount} questions to the bank!`);
+      setExtractedQuestions([]);
+      setUploadStatus("");
+      setUploadedImageUrl(null);
+    } catch (err: any) {
+      console.error(err);
+      setError("Failed to commit questions: " + (err.message || String(err)));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (extractedQuestions.length > 0) {
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center justify-between bg-[#0D121F] border border-slate-800 p-8 rounded-[2.5rem]">
+          <div>
+            <h2 className="text-2xl font-black text-white italic uppercase tracking-tighter">AI Extraction <span className="text-cyan-400">Complete</span></h2>
+            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Found {extractedQuestions.length} valid questions in source PDF</p>
+          </div>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => setExtractedQuestions([])}
+              className="px-6 py-4 rounded-2xl font-black italic uppercase tracking-widest text-slate-500 hover:text-white transition-all"
+            >
+              Discard All
+            </button>
+            <button 
+              onClick={commitToBank}
+              disabled={isProcessing}
+              className="bg-cyan-500 hover:bg-cyan-400 px-8 py-4 rounded-2xl font-black italic uppercase tracking-widest text-white shadow-xl shadow-cyan-900/20 transition-all flex items-center gap-3 disabled:opacity-50"
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              Commit to Question Bank
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          {extractedQuestions.map((q, idx) => (
+            <div key={idx} className="bg-[#0D121F] border border-slate-800 p-6 rounded-[2rem] hover:border-cyan-500/30 transition-all">
+              <div className="flex items-center justify-between mb-4">
+                 <div className="flex items-center gap-3">
+                   <span className="text-[10px] font-black bg-cyan-500/20 text-cyan-400 px-2.5 py-1 rounded-lg uppercase tracking-tight italic">Q{idx + 1}</span>
+                   <span className="text-[10px] font-black bg-purple-500/20 text-purple-400 px-2.5 py-1 rounded-lg uppercase tracking-tight italic">{q.subject}</span>
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{q.chapter}</span>
+                 </div>
+                 <span className={cn(
+                   "text-[9px] font-black px-2 py-0.5 rounded italic",
+                   q.difficulty === "Easy" ? "text-emerald-400 bg-emerald-400/5" :
+                   q.difficulty === "Medium" ? "text-amber-400 bg-amber-400/5" : "text-red-400 bg-red-400/5"
+                 )}>{q.difficulty}</span>
+              </div>
+              <p className="text-white font-medium mb-4">{q.text}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                {q.options.map((opt: string, i: number) => (
+                  <div key={i} className={cn(
+                    "p-3 rounded-xl border text-xs font-bold transition-all",
+                    i === q.correctIndex ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" : "bg-slate-900/50 border-slate-800 text-slate-400"
+                  )}>
+                    {String.fromCharCode(65 + i)}) {opt}
+                  </div>
+                ))}
+              </div>
+              {q.solution && (
+                <div className="p-4 bg-slate-900/30 rounded-xl border border-slate-800/50">
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic mb-1">Solution / Explanation</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">{q.solution}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      <div className="bg-[#0D121F] border border-slate-800 p-12 rounded-[3rem] border-dashed flex flex-col items-center text-center space-y-6">
-        <div className="w-20 h-20 bg-cyan-400/10 rounded-[2rem] flex items-center justify-center text-cyan-400">
-          <Upload className="w-10 h-10" />
-        </div>
-        <div>
-          <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">PDF Bulk <span className="text-cyan-400">Import</span></h3>
-          <p className="text-sm text-slate-500 max-w-sm mt-2 font-medium italic">Our AI engine automatically extracts questions, images, and solutions from standard exam PDFs.</p>
-        </div>
-        <button className="flex items-center gap-3 bg-white text-black px-10 py-5 rounded-3xl font-black italic uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-cyan-400/20">
-          Select Source Files
-        </button>
-        <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Supported formats: PDF, DOCX, XLSX (MAX 50MB)</p>
+    <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-[#0D121F] border border-slate-800 p-12 rounded-[3rem] border-dashed flex flex-col items-center text-center space-y-6 relative overflow-hidden group">
+        <div className="absolute inset-0 bg-gradient-to-b from-cyan-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        
+        {isProcessing ? (
+          <div className="flex flex-col items-center space-y-6 py-12">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full border-4 border-slate-800 border-t-cyan-400 animate-spin" />
+              <BrainCircuit className="w-10 h-10 text-cyan-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-white italic uppercase tracking-tighter animate-pulse">{uploadStatus}</h3>
+              <p className="text-xs text-slate-500 mt-2 font-bold uppercase tracking-widest italic">This usually takes 15-45 seconds</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="w-20 h-20 bg-cyan-400/10 rounded-[2rem] flex items-center justify-center text-cyan-400 transition-transform group-hover:scale-110 duration-500 shadow-xl shadow-cyan-900/10">
+              <Upload className="w-10 h-10" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter font-display">Multimodal AI <span className="text-cyan-400">Digitizer</span></h3>
+              <p className="text-sm text-slate-500 max-w-sm mt-2 font-medium italic">Transform scans or photos into structured digital questions with multimodal reasoning.</p>
+            </div>
+            <div className="relative">
+              <input 
+                type="file" 
+                accept=".pdf,image/*" 
+                onChange={handleFileUpload}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+              <button className="flex items-center gap-3 bg-white text-black px-12 py-5 rounded-3xl font-black italic uppercase tracking-widest hover:scale-105 transition-all shadow-2xl shadow-white/10 active:scale-95">
+                Target Source File
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Supports PDF, JPG, PNG & complex diagrams</p>
+          </>
+        )}
+
+        {error && (
+          <div className="mt-4 p-4 bg-red-400/10 border border-red-400/20 rounded-2xl flex items-center gap-3 text-red-400">
+            <AlertCircle className="w-5 h-5" />
+            <p className="text-[10px] font-black uppercase tracking-widest italic">{error}</p>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-[#0D121F] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6">
-          <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-emerald-400">
+        <div className="bg-[#0D121F] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6 group hover:border-emerald-500/30 transition-all">
+          <div className="w-14 h-14 bg-emerald-400/10 rounded-2xl flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
             <FileText className="w-7 h-7" />
           </div>
           <div>
-             <h4 className="text-sm font-black text-white italic uppercase tracking-widest">OCR Pipeline</h4>
-             <p className="text-xs text-slate-500 italic mt-1 font-medium">Auto-convert paper scans to digital bank</p>
+             <h4 className="text-sm font-black text-white italic uppercase tracking-widest">Vision-to-Text</h4>
+             <p className="text-xs text-slate-500 italic mt-1 font-medium">Advanced OCR handles complex scientific notation</p>
           </div>
         </div>
-        <div className="bg-[#0D121F] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6">
-          <div className="w-14 h-14 bg-blue-400/10 rounded-2xl flex items-center justify-center text-blue-400">
+        <div className="bg-[#0D121F] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6 group hover:border-blue-500/30 transition-all">
+          <div className="w-14 h-14 bg-blue-400/10 rounded-2xl flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
             <BrainCircuit className="w-7 h-7" />
           </div>
           <div>
-             <h4 className="text-sm font-black text-white italic uppercase tracking-widest">Chapter Tagging</h4>
-             <p className="text-xs text-slate-500 italic mt-1 font-medium">Automatic categorization of extracted data</p>
+             <h4 className="text-sm font-black text-white italic uppercase tracking-widest">Semantic Parsing</h4>
+             <p className="text-xs text-slate-500 italic mt-1 font-medium">Automatic subject and chapter categorization</p>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BulkImportModule() {
+  const [data, setData] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [status, setStatus] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setError(null);
+    setIsProcessing(true);
+    setStatus("Parsing CSV...");
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const validated = results.data.map((row: any) => ({
+          subject: row.subject || "Biology",
+          chapter: row.chapter || "General",
+          topic: row.topic || "",
+          text: row.text || row.question || "",
+          options: [
+            row.option1 || row.a || "",
+            row.option2 || row.b || "",
+            row.option3 || row.c || "",
+            row.option4 || row.d || ""
+          ],
+          correctIndex: parseInt(row.correctIndex || row.answer || "0"),
+          difficulty: row.difficulty || "Medium",
+          solution: row.solution || "",
+          ncertRef: row.ncert || "",
+          marks: parseInt(row.marks || "4"),
+          negativeMarks: parseInt(row.negativeMarks || "-1"),
+          estimatedTime: parseInt(row.time || "60")
+        }));
+
+        setData(validated.filter(q => q.text.length > 5));
+        setIsProcessing(false);
+        setStatus("CSV Parsed successfully");
+      },
+      error: (err) => {
+        setError(err.message);
+        setIsProcessing(false);
+      }
+    });
+  };
+
+  const commitToBank = async () => {
+    if (!confirm(`Deploy ${data.length} questions to live database?`)) return;
+    
+    setIsProcessing(true);
+    setStatus("Committing to Firestore...");
+    let success = 0;
+
+    try {
+      for (const q of data) {
+        await addDoc(collection(db, "questions"), {
+          ...q,
+          status: "published",
+          createdAt: serverTimestamp(),
+          tags: ["bulk-import", q.subject.toLowerCase(), q.chapter.toLowerCase()]
+        });
+        success++;
+        setStatus(`Deploying questions... (${success}/${data.length})`);
+      }
+      alert(`Architecture Update Complete: ${success} entities synced.`);
+      setData([]);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsProcessing(false);
+      setStatus("");
+    }
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-[#0D121F] border border-slate-800 p-12 rounded-[3.5rem] relative overflow-hidden group">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="space-y-4 text-center md:text-left">
+            <h3 className="text-3xl font-black text-white italic uppercase tracking-tighter">Bulk <span className="text-purple-400">Question Sync</span></h3>
+            <p className="text-slate-500 font-medium italic text-sm max-w-md">Import high-volume question data via CSV. Ensure columns: subject, chapter, text, option1-4, correctIndex.</p>
+            
+            <div className="flex flex-wrap gap-3 mt-6">
+              <div className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest tracking-[0.2em]">MAX: 500 Q's / Upload</div>
+              <div className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest tracking-[0.2em]">Format: CSV strictly</div>
+            </div>
+          </div>
+
+          <div className="relative group">
+            <input 
+              type="file" 
+              accept=".csv" 
+              onChange={handleFile}
+              className="absolute inset-0 opacity-0 cursor-pointer z-10"
+            />
+            <div className="bg-purple-600 hover:bg-purple-500 text-white px-10 py-6 rounded-[2rem] font-black italic uppercase tracking-[0.1em] shadow-2xl shadow-purple-900/30 transition-all flex items-center gap-4">
+              <Database className="w-6 h-6" />
+              Source CSV File
+            </div>
+          </div>
+        </div>
+
+        {isProcessing && (
+          <div className="mt-8 flex items-center gap-4 p-4 bg-purple-500/10 border border-purple-500/20 rounded-2xl">
+            <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+            <span className="text-xs font-black text-purple-400 uppercase italic">{status}</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-8 p-4 bg-red-400/10 border border-red-400/30 rounded-2xl flex items-center gap-3 text-red-400">
+            <AlertCircle className="w-5 h-5" />
+            <span className="text-[10px] font-black uppercase tracking-widest">{error}</span>
+          </div>
+        )}
+      </div>
+
+      {data.length > 0 && (
+        <div className="bg-[#0D121F] border border-slate-800 rounded-[2.5rem] overflow-hidden animate-in zoom-in-95 duration-500">
+          <div className="p-8 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h4 className="text-xl font-black text-white italic uppercase tracking-tighter">Preview <span className="text-emerald-400">Staging Area</span></h4>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 italic">{data.length} questions parsed and ready for commit</p>
+            </div>
+            <button 
+              onClick={commitToBank}
+              disabled={isProcessing}
+              className="bg-emerald-500 hover:bg-emerald-400 text-white px-8 py-4 rounded-2xl font-black italic uppercase tracking-widest shadow-xl shadow-emerald-900/20 transition-all flex items-center gap-3 disabled:opacity-50"
+            >
+              {isProcessing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+              Commit to Database
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-900/50">
+                  <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Subject</th>
+                  <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Chapter</th>
+                  <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Question Text</th>
+                  <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Correct</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {data.slice(0, 10).map((q, i) => (
+                  <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="p-6">
+                      <span className="px-3 py-1 bg-white/5 rounded text-[10px] font-black text-white italic uppercase">{q.subject}</span>
+                    </td>
+                    <td className="p-6 text-center">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{q.chapter}</span>
+                    </td>
+                    <td className="p-6">
+                      <p className="text-sm text-slate-300 line-clamp-1 italic">{q.text}</p>
+                    </td>
+                    <td className="p-6 text-right">
+                      <span className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-[10px] font-black ml-auto border border-emerald-500/20">
+                        {String.fromCharCode(65 + q.correctIndex)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {data.length > 10 && (
+              <div className="p-6 bg-slate-900/30 text-center">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">... and {data.length - 10} more entries</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
